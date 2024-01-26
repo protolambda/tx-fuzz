@@ -383,7 +383,7 @@ func exec(addr common.Address, data []byte, blobs bool) *types.Transaction {
 		fmt.Printf("checking confirmation...\n")
 		receipt, err := backend.TransactionReceipt(context.Background(), _tx.Hash())
 		if err != nil {
-			fmt.Printf("failed to get receipt: %v\n", err)
+			fmt.Printf("no receipt found yet: %v\n", err)
 			time.Sleep(time.Second)
 			continue
 		}
@@ -548,7 +548,7 @@ func execute(data []byte, gaslimit uint64) {
 		fmt.Printf("checking confirmation...\n")
 		receipt, err := backend.TransactionReceipt(context.Background(), signedTx.Hash())
 		if err != nil {
-			fmt.Printf("failed to get receipt: %v\n", err)
+			fmt.Printf("no receipt found yet: %v\n", err)
 			time.Sleep(time.Second)
 			continue
 		}

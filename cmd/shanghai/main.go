@@ -109,7 +109,7 @@ func exec(data []byte) {
 		fmt.Printf("checking confirmation...\n")
 		receipt, err := backend.TransactionReceipt(context.Background(), signedTx.Hash())
 		if err != nil {
-			fmt.Printf("failed to get receipt: %v\n", err)
+			fmt.Printf("no receipt found yet: %v\n", err)
 			time.Sleep(time.Second)
 			continue
 		}
