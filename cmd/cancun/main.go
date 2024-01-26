@@ -8,6 +8,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"math/big"
+	"runtime"
 	"time"
 
 	txfuzz "github.com/MariusVanDerWijden/tx-fuzz"
@@ -248,6 +249,10 @@ func test4844_precompile() {
 }
 
 func wait(tx *types.Transaction) {
+	if tx == nil {
+		fmt.Printf("cannot wait for nil tx\n")
+		return
+	}
 	client, _ := getRealBackend()
 	backend := ethclient.NewClient(client)
 	bind.WaitMined(context.Background(), backend, tx)
@@ -311,6 +316,11 @@ func kZGToVersionedHash(kzg kzg4844.Commitment) common.Hash {
 }
 
 func exec(addr common.Address, data []byte, blobs bool) *types.Transaction {
+	fmt.Printf("\n\n\n")
+	_, file, no, ok := runtime.Caller(1)
+	if ok {
+		fmt.Printf("Exec %s#%d\n", file, no)
+	}
 	cl, sk := getRealBackend()
 	backend := ethclient.NewClient(cl)
 	sender := common.HexToAddress(txfuzz.ADDR)
@@ -357,10 +367,32 @@ func exec(addr common.Address, data []byte, blobs bool) *types.Transaction {
 		_tx = signedTx
 	}
 
-	if err := cl.CallContext(context.Background(), nil, "eth_sendRawTransaction", hexutil.Encode(rlpData)); err != nil {
-		panic(err)
+	err = cl.CallContext(context.Background(), nil, "eth_sendRawTransaction", hexutil.Encode(rlpData))
+	if err != nil {
+		fmt.Printf("TRANSACTION SUBMISSION ERROR: %v\n", err)
+		return nil
 	}
-	return _tx
+	for i := 0; i < 30; i++ {
+		fmt.Printf("checking confirmation...\n")
+		receipt, err := backend.TransactionReceipt(context.Background(), _tx.Hash())
+		if err != nil {
+			fmt.Printf("failed to get receipt: %v\n", err)
+			time.Sleep(time.Second)
+			continue
+		}
+		if receipt.Status == types.ReceiptStatusSuccessful {
+			fmt.Printf("Receipt success! gas used: %d\n", receipt.GasUsed)
+			if receipt.ContractAddress != (common.Address{}) {
+				fmt.Printf("deployed a contract: %s\n", receipt.ContractAddress)
+			}
+			return _tx
+		} else {
+			fmt.Printf("Receipt failed! gas used: %d\n", receipt.GasUsed)
+			return nil
+		}
+	}
+	fmt.Printf("FAILED TO CONFIRM %s\n", _tx.Hash())
+	return nil
 }
 
 func getRealBackend() (*rpc.Client, *ecdsa.PrivateKey) {
@@ -479,6 +511,11 @@ func deploy(bytecode string) (common.Address, error) {
 }
 
 func execute(data []byte, gaslimit uint64) {
+	fmt.Printf("\n\n\n")
+	_, file, no, ok := runtime.Caller(1)
+	if ok {
+		fmt.Printf("Execute %s#%d\n", file, no)
+	}
 	cl, sk := getRealBackend()
 	backend := ethclient.NewClient(cl)
 	sender := common.HexToAddress(txfuzz.ADDR)
@@ -494,7 +531,32 @@ func execute(data []byte, gaslimit uint64) {
 	gp, _ := backend.SuggestGasPrice(context.Background())
 	tx := types.NewContractCreation(nonce, common.Big1, gaslimit, gp.Mul(gp, common.Big2), data)
 	signedTx, _ := types.SignTx(tx, types.NewLondonSigner(chainid), sk)
-	backend.SendTransaction(context.Background(), signedTx)
+	fmt.Printf("sending tx: %s   nonce: %d, calldata: %x\n", signedTx.Hash(), signedTx.Nonce(), signedTx.Data())
+	err = backend.SendTransaction(context.Background(), signedTx)
+	if err != nil {
+		fmt.Printf("TRANSACTION SUBMISSION ERROR: %v\n", err)
+		return
+	}
+	for i := 0; i < 30; i++ {
+		fmt.Printf("checking confirmation...\n")
+		receipt, err := backend.TransactionReceipt(context.Background(), signedTx.Hash())
+		if err != nil {
+			fmt.Printf("failed to get receipt: %v\n", err)
+			time.Sleep(time.Second)
+			continue
+		}
+		if receipt.Status == types.ReceiptStatusSuccessful {
+			fmt.Printf("Receipt success! gas used: %d\n", receipt.GasUsed)
+			if receipt.ContractAddress != (common.Address{}) {
+				fmt.Printf("deployed a contract: %s\n", receipt.ContractAddress)
+			}
+			return
+		} else {
+			fmt.Printf("Receipt failed! gas used: %d\n", receipt.GasUsed)
+			return
+		}
+	}
+	fmt.Printf("FAILED TO CONFIRM %s\n", signedTx.Hash())
 }
 
 func Uint64ToHash(u uint64) common.Hash {

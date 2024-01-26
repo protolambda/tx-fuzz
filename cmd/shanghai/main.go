@@ -5,6 +5,8 @@ import (
 	"crypto/ecdsa"
 	"encoding/binary"
 	"fmt"
+	"runtime"
+	"time"
 
 	txfuzz "github.com/MariusVanDerWijden/tx-fuzz"
 	"github.com/ethereum/go-ethereum/common"
@@ -77,6 +79,11 @@ func main() {
 }
 
 func exec(data []byte) {
+	fmt.Printf("\n\n\n")
+	_, file, no, ok := runtime.Caller(1)
+	if ok {
+		fmt.Printf("Exec %s#%d\n", file, no)
+	}
 	cl, sk := getRealBackend()
 	backend := ethclient.NewClient(cl)
 	sender := common.HexToAddress(txfuzz.ADDR)
@@ -92,7 +99,32 @@ func exec(data []byte) {
 	gp, _ := backend.SuggestGasPrice(context.Background())
 	tx := types.NewContractCreation(nonce, common.Big1, 500000, gp.Mul(gp, common.Big2), data)
 	signedTx, _ := types.SignTx(tx, types.NewLondonSigner(chainid), sk)
-	backend.SendTransaction(context.Background(), signedTx)
+	fmt.Printf("sending tx: %s   nonce: %d, calldata: %x\n", signedTx.Hash(), signedTx.Nonce(), signedTx.Data())
+	err = backend.SendTransaction(context.Background(), signedTx)
+	if err != nil {
+		fmt.Printf("TRANSACTION SUBMISSION ERROR: %v\n", err)
+		return
+	}
+	for i := 0; i < 30; i++ {
+		fmt.Printf("checking confirmation...\n")
+		receipt, err := backend.TransactionReceipt(context.Background(), signedTx.Hash())
+		if err != nil {
+			fmt.Printf("failed to get receipt: %v\n", err)
+			time.Sleep(time.Second)
+			continue
+		}
+		if receipt.Status == types.ReceiptStatusSuccessful {
+			fmt.Printf("Receipt success! gas used: %d\n", receipt.GasUsed)
+			if receipt.ContractAddress != (common.Address{}) {
+				fmt.Printf("deployed a contract: %s\n", receipt.ContractAddress)
+			}
+			return
+		} else {
+			fmt.Printf("Receipt failed! gas used: %d\n", receipt.GasUsed)
+			return
+		}
+	}
+	fmt.Printf("FAILED TO CONFIRM %s\n", signedTx.Hash())
 }
 
 // PUSH4 size
