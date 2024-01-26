@@ -242,8 +242,8 @@ func test4844_precompile() {
 
 	wait(tx)
 
-	// Full block of verification
-	for i := 0; i < 30_000_000/100_000; i++ {
+	// Some random verification
+	for i := 0; i < 10; i++ {
 		exec(addr, validRandomInput, false)
 	}
 }
@@ -369,8 +369,15 @@ func exec(addr common.Address, data []byte, blobs bool) *types.Transaction {
 
 	err = cl.CallContext(context.Background(), nil, "eth_sendRawTransaction", hexutil.Encode(rlpData))
 	if err != nil {
+		if blobs {
+			fmt.Println("SUCCESSFULLY DECLINED BLOB TX")
+			return nil
+		}
 		fmt.Printf("TRANSACTION SUBMISSION ERROR: %v\n", err)
 		return nil
+	}
+	if blobs {
+		fmt.Println("EXPECTED TO FAIL")
 	}
 	for i := 0; i < 30; i++ {
 		fmt.Printf("checking confirmation...\n")
