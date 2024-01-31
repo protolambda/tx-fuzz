@@ -184,9 +184,12 @@ func test4788() {
 
 	// short or long calls
 	for i := 0; i < 64; i++ {
+		if i == 32 { // valid length, covered in other cases
+			continue
+		}
 		fmt.Printf("input length: %d\n", i)
 		arr := make([]byte, i)
-		exec2(contractAddr4788, arr, false, len(arr) != 32) // expect revert on bad length calldata
+		exec2(contractAddr4788, arr, false, true) // expect revert on bad length calldata
 	}
 
 	// random calls
@@ -195,7 +198,7 @@ func test4788() {
 		if _, err := rand.Read(arr); err != nil {
 			panic(err)
 		}
-		exec(contractAddr4788, arr, false)
+		exec2(contractAddr4788, arr, false, true) // not a valid timestamp
 	}
 }
 

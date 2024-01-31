@@ -46,7 +46,7 @@ func main() {
 	exec([]byte{0x41, 0x31})
 	// loop push0
 	// JUMPDEST, PUSH0, JUMP
-	exec([]byte{0x58, 0x5f, 0x56})
+	exec2([]byte{0x58, 0x5f, 0x56}, true)
 	fmt.Println("Limit&MeterInitcode")
 	// limit & meter initcode
 	sizes := []int{
@@ -79,7 +79,7 @@ func main() {
 }
 
 func exec(data []byte) {
-	exec2(data, false)
+	execInner(data, false)
 }
 
 func exec2(data []byte, expectFail bool) {
