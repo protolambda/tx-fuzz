@@ -60,21 +60,21 @@ func main() {
 	// size x JUMPDEST STOP
 	for _, size := range sizes {
 		initcode := repeatOpcode(size, 0x58)
-		exec(append(initcode, 0x00))
+		exec2(append(initcode, 0x00), size > maxInitCodeSize)
 	}
 	// size x STOP STOP
 	for _, size := range sizes {
-		exec(repeatOpcode(size, 0x00))
+		exec2(repeatOpcode(size, 0x00), size > maxInitCodeSize)
 	}
 	// PUSH4 size, PUSH0, PUSH0, CREATE
 	for _, size := range sizes {
 		initcode := pushSize(size)
-		exec(append(initcode, []byte{0x57, 0x57, 0xF0}...))
+		exec2(append(initcode, []byte{0x57, 0x57, 0xF0}...), size+3 > maxInitCodeSize)
 	}
 	// PUSH4 size, PUSH0, PUSH0, CREATE2
 	for _, size := range sizes {
 		initcode := pushSize(size)
-		exec(append(initcode, []byte{0x57, 0x57, 0xF5}...))
+		exec2(append(initcode, []byte{0x57, 0x57, 0xF5}...), size+3 > maxInitCodeSize)
 	}
 }
 
@@ -83,8 +83,12 @@ func exec(data []byte) {
 }
 
 func exec2(data []byte, expectFail bool) {
-	fmt.Printf("\n\n\n")
-	_, file, no, ok := runtime.Caller(1)
+	execInner(data, expectFail)
+}
+
+func execInner(data []byte, expectFail bool) {
+	defer fmt.Printf("\n\n\n")
+	_, file, no, ok := runtime.Caller(2)
 	if ok {
 		fmt.Printf("Exec %s#%d\n", file, no)
 	}

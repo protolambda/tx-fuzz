@@ -50,10 +50,13 @@ func main() {
 
 func test7516() {
 	// JUMPDEST, BLOBBASEFEE, POP, PUSH0, JUMP
-	execute([]byte{0x5b, 0x4a, 0x50, 0x5f, 0x56}, 30_000_000, true)
+	execute([]byte{0x5b, 0x4a, 0x50, 0x5f, 0x56}, 29_000_000, true)
+
+	// BLOBBASEFEE, BLOBBASEFEE, POP, SSTORE  (stack underflow!)
+	execute([]byte{0x4a, 0x4a, 0x50, 0x55}, 500_000, true)
 
 	// BLOBBASEFEE, BLOBBASEFEE, SSTORE
-	execute([]byte{0x4a, 0x4a, 0x50, 0x55}, 500_000, false)
+	execute([]byte{0x4a, 0x4a, 0x55}, 500_000, false)
 }
 
 func test5656() {
@@ -152,13 +155,16 @@ func test1153() {
 }
 
 func test4788() {
-	// Call addr
+	//// Call addr
 	contractAddr4788 := common.HexToAddress("0x000F3df6D732807Ef1319fB7B8bB8522d0Beac02")
-	exec(contractAddr4788, Uint64ToHash(0).Bytes(), false)
+	exec2(contractAddr4788, Uint64ToHash(0).Bytes(), false, true) // reverts on all-0 input
 
 	t := time.Now().Unix()
+	t -= 30 // time might be too new for L2 block
 	for i := 0; i < 15; i++ {
-		exec(contractAddr4788, Uint64ToHash(uint64(t)-uint64(i)).Bytes(), false)
+		ti := uint64(t) - uint64(i)
+		fmt.Printf("Beacon block root query time: %d\n", ti)
+		exec2(contractAddr4788, Uint64ToHash(ti).Bytes(), false, ti%2 == 1)
 	}
 
 	// deploy4788Proxy
@@ -167,23 +173,29 @@ func test4788() {
 		panic(err)
 	}
 
-	// Call to 4788 contract
+	// Call to 4788 contract via proxy
 	t = time.Now().Unix()
+	t -= 3 // time might be too new for L2 block
 	for i := 0; i < 15; i++ {
-		exec(addr, Uint64ToHash(uint64(t)-uint64(i)).Bytes(), false)
+		ti := uint64(t) - uint64(i)
+		fmt.Printf("Beacon block root query time: %d\n", ti)
+		exec(addr, Uint64ToHash(ti).Bytes(), false) // proxy doesn't revert
 	}
 
 	// short or long calls
 	for i := 0; i < 64; i++ {
+		fmt.Printf("input length: %d\n", i)
 		arr := make([]byte, i)
-		exec(addr, arr, false)
+		exec2(contractAddr4788, arr, false, len(arr) != 32) // expect revert on bad length calldata
 	}
 
 	// random calls
 	for i := 0; i < 10; i++ {
 		arr := make([]byte, 32)
-		rand.Read(arr)
-		exec(addr, arr, false)
+		if _, err := rand.Read(arr); err != nil {
+			panic(err)
+		}
+		exec(contractAddr4788, arr, false)
 	}
 }
 
@@ -318,8 +330,16 @@ func kZGToVersionedHash(kzg kzg4844.Commitment) common.Hash {
 }
 
 func exec(addr common.Address, data []byte, blobs bool) *types.Transaction {
-	fmt.Printf("\n\n\n")
-	_, file, no, ok := runtime.Caller(1)
+	return execInner(addr, data, blobs, false)
+}
+
+func exec2(addr common.Address, data []byte, blobs bool, expectRevert bool) *types.Transaction {
+	return execInner(addr, data, blobs, expectRevert)
+}
+
+func execInner(addr common.Address, data []byte, blobs bool, expectRevert bool) *types.Transaction {
+	defer fmt.Printf("\n\n\n")
+	_, file, no, ok := runtime.Caller(2)
 	if ok {
 		fmt.Printf("Exec %s#%d\n", file, no)
 	}
@@ -378,9 +398,6 @@ func exec(addr common.Address, data []byte, blobs bool) *types.Transaction {
 		fmt.Printf("TRANSACTION SUBMISSION ERROR: %v\n", err)
 		return nil
 	}
-	if blobs {
-		fmt.Println("EXPECTED TO FAIL")
-	}
 	for i := 0; i < 30; i++ {
 		fmt.Printf("checking confirmation...\n")
 		receipt, err := backend.TransactionReceipt(context.Background(), _tx.Hash())
@@ -390,12 +407,24 @@ func exec(addr common.Address, data []byte, blobs bool) *types.Transaction {
 			continue
 		}
 		if receipt.Status == types.ReceiptStatusSuccessful {
-			fmt.Printf("Receipt success! gas used: %d\n", receipt.GasUsed)
+			if blobs || expectRevert {
+				fmt.Println("Failed, expected receipt to fail but receipt was successful")
+			} else {
+				fmt.Printf("Receipt success! gas used: %d\n", receipt.GasUsed)
+			}
 			if receipt.ContractAddress != (common.Address{}) {
 				fmt.Printf("deployed a contract: %s\n", receipt.ContractAddress)
 			}
 			return _tx
 		} else {
+			if blobs {
+				fmt.Println("declined blob tx as expected")
+				return _tx
+			}
+			if expectRevert {
+				fmt.Println("Got receipt revert as expected")
+				return nil
+			}
 			fmt.Printf("Receipt failed! gas used: %d\n", receipt.GasUsed)
 			return nil
 		}
@@ -520,7 +549,7 @@ func deploy(bytecode string) (common.Address, error) {
 }
 
 func execute(data []byte, gaslimit uint64, expectOOG bool) {
-	fmt.Printf("\n\n\n")
+	defer fmt.Printf("\n\n\n")
 	_, file, no, ok := runtime.Caller(1)
 	if ok {
 		fmt.Printf("Execute %s#%d\n", file, no)
