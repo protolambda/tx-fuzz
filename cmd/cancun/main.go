@@ -32,6 +32,8 @@ var (
 )
 
 func main() {
+	//testFailed()
+
 	fmt.Println("4788")
 	test4788()
 	fmt.Println("1153")
@@ -48,15 +50,15 @@ func main() {
 
 func test7516() {
 	// JUMPDEST, BLOBBASEFEE, POP, PUSH0, JUMP
-	execute([]byte{0x5b, 0x4a, 0x50, 0x5f, 0x56}, 30_000_000)
+	execute([]byte{0x5b, 0x4a, 0x50, 0x5f, 0x56}, 30_000_000, true)
 
 	// BLOBBASEFEE, BLOBBASEFEE, SSTORE
-	execute([]byte{0x4a, 0x4a, 0x50, 0x55}, 500_000)
+	execute([]byte{0x4a, 0x4a, 0x50, 0x55}, 500_000, false)
 }
 
 func test5656() {
 	// PUSH1, 0x20, PUSH0, PUSH0, MCOPY
-	execute([]byte{0x60, 0x20, 0x5f, 0x5f, 0x5e}, 30_000_000)
+	execute([]byte{0x60, 0x20, 0x5f, 0x5f, 0x5e}, 30_000_000, false)
 
 	pushMaxVal := func() []byte {
 		return []byte{0x7f, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff}
@@ -67,24 +69,24 @@ func test5656() {
 	}
 
 	// PUSH32, 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff, PUSH0, PUSH0, MCOPY
-	execute(append(pushMaxVal(), 0x5f, 0x5f, 0x5e), 30_000_000)
+	execute(append(pushMaxVal(), 0x5f, 0x5f, 0x5e), 30_000_000, true)
 
 	// PUSH0, PUSH32, 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff, PUSH0, MCOPY
 	code := []byte{0x5f}
 	code = append(code, pushMaxVal()...)
 	code = append(code, []byte{0x5f, 0x5e}...)
 	code = append(code, sstore()...)
-	execute(code, 30_000_000)
+	execute(code, 30_000_000, false)
 
 	// PUSH0, PUSH0, PUSH32, 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff, MCOPY
 	code = []byte{0x5f, 0x5f}
 	code = append(code, pushMaxVal()...)
 	code = append(code, []byte{0x5e}...)
 	code = append(code, sstore()...)
-	execute(code, 30_000_000)
+	execute(code, 30_000_000, false)
 
 	// PUSH0, PUSH1, 0xff, MSTORE, JUMPDEST, PUSH1, 0x20, PUSH0, PUSH0, MCOPY, PUSH1, 0x04 JUMP
-	execute([]byte{0x5f, 0x60, 0xff, 0x52, 0x5b, 0x60, 0x20, 0x5f, 0x5f, 0x5e, 0x60, 0x04, 0x56}, 30_000_000)
+	execute([]byte{0x5f, 0x60, 0xff, 0x52, 0x5b, 0x60, 0x20, 0x5f, 0x5f, 0x5e, 0x60, 0x04, 0x56}, 30_000_000, true)
 
 	test5656_memBuster()
 }
@@ -124,7 +126,7 @@ func test5656_memBuster() {
 	code = append(code, 0x56)
 
 	// PUSH0, PUSH1, 0xff, MSTORE, JUMPDEST, PUSH1, 0x20, PUSH0, PUSH0, MCOPY, PUSH1, 0x04 JUMP
-	execute(code, 30_000_000)
+	execute(code, 30_000_000, true)
 }
 
 func pushSize(size int) []byte {
@@ -137,16 +139,16 @@ func pushSize(size int) []byte {
 
 func test1153() {
 	// JUMPDEST, GAS, GAS, TSTORE, PUSH0, JUMP
-	execute([]byte{0x5b, 0x5a, 0x5a, 0x5d, 0x5f, 0x56}, 30_000_000)
+	execute([]byte{0x5b, 0x5a, 0x5a, 0x5d, 0x5f, 0x56}, 30_000_000, true)
 
 	// JUMPDEST, GAS, DUP1, DUP1, TSTORE, TLOAD, POP, PUSH0, JUMP
-	execute([]byte{0x5b, 0x5a, 0x80, 0x80, 0x5d, 0x5c, 0x50, 0x5f, 0x56}, 30_000_000)
+	execute([]byte{0x5b, 0x5a, 0x80, 0x80, 0x5d, 0x5c, 0x50, 0x5f, 0x56}, 30_000_000, true)
 
 	// PUSH0, TLOAD, GAS, TLOAD, SSTORE
-	execute([]byte{0x5f, 0x5c, 0x5a, 0x55}, 500_000)
+	execute([]byte{0x5f, 0x5c, 0x5a, 0x55}, 500_000, false)
 
 	// PUSH32, 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff TLOAD DUP1, SSTORE
-	execute([]byte{0x7f, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x5c, 0x80, 0x55}, 500_000)
+	execute([]byte{0x7f, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x5c, 0x80, 0x55}, 500_000, false)
 }
 
 func test4788() {
@@ -366,7 +368,7 @@ func exec(addr common.Address, data []byte, blobs bool) *types.Transaction {
 		}
 		_tx = signedTx
 	}
-
+	fmt.Printf("tx: %s\n", _tx.Hash())
 	err = cl.CallContext(context.Background(), nil, "eth_sendRawTransaction", hexutil.Encode(rlpData))
 	if err != nil {
 		if blobs {
@@ -517,7 +519,7 @@ func deploy(bytecode string) (common.Address, error) {
 	return bind.WaitDeployed(context.Background(), backend, signedTx)
 }
 
-func execute(data []byte, gaslimit uint64) {
+func execute(data []byte, gaslimit uint64, expectOOG bool) {
 	fmt.Printf("\n\n\n")
 	_, file, no, ok := runtime.Caller(1)
 	if ok {
@@ -553,12 +555,24 @@ func execute(data []byte, gaslimit uint64) {
 			continue
 		}
 		if receipt.Status == types.ReceiptStatusSuccessful {
+			if expectOOG {
+				fmt.Println("Failed, unexpected receipt success without OOG failure")
+				return
+			}
 			fmt.Printf("Receipt success! gas used: %d\n", receipt.GasUsed)
 			if receipt.ContractAddress != (common.Address{}) {
 				fmt.Printf("deployed a contract: %s\n", receipt.ContractAddress)
 			}
 			return
 		} else {
+			if expectOOG {
+				if receipt.GasUsed == signedTx.Gas() {
+					fmt.Printf("Tx used max gas as expected: %d", receipt.GasUsed)
+				} else {
+					fmt.Println("Receipt used less gas than expected: %d / %d", receipt.GasUsed, signedTx.Gas())
+				}
+				return
+			}
 			fmt.Printf("Receipt failed! gas used: %d\n", receipt.GasUsed)
 			return
 		}
@@ -570,4 +584,34 @@ func Uint64ToHash(u uint64) common.Hash {
 	var h common.Hash
 	binary.BigEndian.PutUint64(h[24:], u)
 	return h
+}
+
+func testFailed() {
+
+	//JUMPDEST, GAS, GAS, TSTORE, PUSH0, JUMP
+	execute([]byte{0x5b, 0x5a, 0x5a, 0x5d, 0x5f, 0x56}, 30_000_000, true) // literally just loops and runs out of gas
+
+	//JUMPDEST, GAS, DUP1, DUP1, TSTORE, TLOAD, POP, PUSH0, JUMP
+	execute([]byte{0x5b, 0x5a, 0x80, 0x80, 0x5d, 0x5c, 0x50, 0x5f, 0x56}, 30_000_000, true) // ERROR looping
+
+	//PUSH0, TLOAD, GAS, TLOAD, SSTORE
+	execute([]byte{0x5f, 0x5c, 0x5a, 0x55}, 500_000, false) // pass!
+
+	//JUMPDEST, BLOBBASEFEE, POP, PUSH0, JUMP
+	execute([]byte{0x5b, 0x4a, 0x50, 0x5f, 0x56}, 30_000_000, true) // ERROR looping
+
+	//BLOBBASEFEE, BLOBBASEFEE, POP, SSTORE
+	execute([]byte{0x4a, 0x4a, 0x50, 0x55}, 500_000, true) // pop causes underflow
+
+	pushMaxVal := func() []byte {
+		return []byte{0x7f, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff}
+	}
+
+	//PUSH32, 0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff, PUSH0, PUSH0, MCOPY
+	execute(append(pushMaxVal(), 0x5f, 0x5f, 0x5e), 30_000_000, true) // ERROR  can't mcopy this odd mem addr
+
+	//PUSH0, PUSH1, 0xff, MSTORE, JUMPDEST, PUSH1, 0x20, PUSH0, PUSH0, MCOPY, PUSH1, 0x04 JUMP
+	execute([]byte{0x5f, 0x60, 0xff, 0x52, 0x5b, 0x60, 0x20, 0x5f, 0x5f, 0x5e, 0x60, 0x04, 0x56}, 30_000_000, true) // ERROR looping
+
+	test5656_memBuster() // ERROR looping
 }

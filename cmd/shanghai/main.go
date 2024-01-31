@@ -79,6 +79,10 @@ func main() {
 }
 
 func exec(data []byte) {
+	exec2(data, false)
+}
+
+func exec2(data []byte, expectFail bool) {
 	fmt.Printf("\n\n\n")
 	_, file, no, ok := runtime.Caller(1)
 	if ok {
@@ -114,13 +118,21 @@ func exec(data []byte) {
 			continue
 		}
 		if receipt.Status == types.ReceiptStatusSuccessful {
+			if expectFail {
+				fmt.Println("Failed, unexpected receipt success!")
+				return
+			}
 			fmt.Printf("Receipt success! gas used: %d\n", receipt.GasUsed)
 			if receipt.ContractAddress != (common.Address{}) {
 				fmt.Printf("deployed a contract: %s\n", receipt.ContractAddress)
 			}
 			return
 		} else {
-			fmt.Printf("Receipt failed! gas used: %d\n", receipt.GasUsed)
+			if expectFail {
+				fmt.Println("Receipt indicates revert as expected")
+			} else {
+				fmt.Printf("Receipt failed! gas used: %d\n", receipt.GasUsed)
+			}
 			return
 		}
 	}
